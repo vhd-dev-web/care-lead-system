@@ -41,6 +41,7 @@ def load_policy(path: Path | str = DEFAULT_POLICY_PATH) -> dict[str, Any]:
         "stop_on_low_brave_remaining": True,
         "brave_low_remaining_threshold": 1,
         "state_db_path": "output/state/pipeline_state.sqlite",
+        "niche": "pflegebox",
         "bot_user_agent": (
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
             "AppleWebKit/537.36 (KHTML, like Gecko) "

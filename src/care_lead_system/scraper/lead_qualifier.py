@@ -81,6 +81,15 @@ OUT_FIELDS = [
     "is_woocommerce",
     "detected_platform",
     "detected_platform_signals",
+    "niche",
+    "care_lead_type",
+    "ik_number",
+    "care_product_signals",
+    "care_gkv_signals",
+    "care_process_signals",
+    "care_insurer_signals",
+    "care_ratgeber_signals",
+    "scale_indicators",
     "is_dach",
     "vhd_fit_score",
     "next_action",
@@ -315,6 +324,155 @@ PLATFORM_MARKERS: list[tuple[str, list[str]]] = [
 
 TARGET_PLATFORM = "woocommerce"
 
+# ====================================================================
+# Care / Pflegehilfsmittel ICP — derived from the 6 reference providers
+# (pflegemittelbox, sanubi, pflegebox, mein-pflegeset, box4pflege,
+# hygibox). All six use the same vocabulary, all six list a 9-digit
+# IK-Nummer in their imprint, all six bill the Pflegekasse for the
+# 42€/month Pflegehilfsmittel-zum-Verbrauch allowance under §40 SGB XI.
+# ====================================================================
+
+# Core product evidence — at least one of these on the page means the
+# provider sells the regulated 42€ care-aid kit, not a related product.
+CARE_PRODUCT_MARKERS = [
+    "pflegebox",
+    "pflegeset",
+    "pflegepaket",
+    "hygibox",
+    "pflegehilfsmittel zum verbrauch",
+    "pflegehilfsmittel",
+    "zum verbrauch bestimmte hilfsmittel",
+    "42 euro",
+    "42 €",
+    "42€",
+    "40 euro",
+    "40 €",
+]
+
+# Legal framework evidence — the provider must operate inside SGB XI.
+CARE_GKV_MARKERS = [
+    "§ 40 sgb xi",
+    "§40 sgb xi",
+    "§ 42 sgb xi",
+    "§42 sgb xi",
+    "§ 78 sgb xi",
+    "§78 sgb xi",
+    "elftes buch sozialgesetzbuch",
+    "pflegekasse",
+    "pflegegrad",
+    "pflegestufe",
+    "kostenübernahme",
+    "kostenübernahme",
+    "vertragspartner",
+    "präqualifizierung",
+    "präqualifizierung",
+    "leistungserbringer",
+    "ohne zuzahlung",
+    "zuzahlungsfrei",
+    "häusliche pflege",
+    "häusliche pflege",
+]
+
+# Application / order flow vocabulary. Pflegebox providers use
+# "Antrag"/"beantragen"/"konfigurieren"/"zusammenstellen" instead of
+# the generic e-commerce "Bestellung". Presence of these strongly
+# distinguishes a provider site from a content/ratgeber site.
+CARE_PROCESS_MARKERS = [
+    "antrag anfordern",
+    "antrag stellen",
+    "antrag ausfüllen",
+    "antrag ausfüllen",
+    "pflegebox beantragen",
+    "pflegebox bestellen",
+    "pflegebox zusammenstellen",
+    "pflegebox konfigurieren",
+    "konfigurator",
+    "online beantragen",
+    "monatlich kündbar",
+    "monatlich kündbar",
+    "monatliche lieferung",
+    "kostenfrei nach hause",
+]
+
+# Names of the major German statutory health/care insurers. Presence
+# of several of them as logos / mentions is a strong "real provider"
+# signal — they are listed because real Vertragspartner advertise
+# which Kassen they work with.
+CARE_GKV_INSURERS = [
+    "aok",
+    "barmer",
+    "dak",
+    "tk-ersatzkasse",
+    "techniker krankenkasse",
+    "ikk classic",
+    "ikk gesund plus",
+    "knappschaft",
+    "bkk",
+    "vivida bkk",
+    "siemens-betriebskrankenkasse",
+    "sbk",
+    "hkk",
+    "kkh",
+    "mhplus",
+    "audi bkk",
+    "bertelsmann bkk",
+    "viactiv",
+]
+
+# Negative — pages that talk about Pflegehilfsmittel but are not
+# providers. These should classify the page as "review" or "rejected".
+CARE_RATGEBER_TERMS = [
+    "ratgeber",
+    "ratgeber pflege",
+    "pflegeportal",
+    "pflegestützpunkt",
+    "pflegestützpunkt",
+    "pflegemagazin",
+    "magazin",
+    "wissensportal",
+    "lexikon",
+    "vergleichsportal",
+    "anbietervergleich",
+    "preisvergleich",
+    "stiftung warentest",
+    "verbraucherzentrale",
+    "verbraucherratgeber",
+    "krankenkassen-info",
+    "kassen-info",
+    "pflegekassen-info",
+    "informationen für",
+    "informationen für",
+    "alles wissenswerte",
+    "ausführlicher ratgeber",
+    "ausführlicher ratgeber",
+]
+
+# Scale claims — providers worth talking to often advertise size.
+# Tightly-anchored regexes; we deliberately require an explicit unit
+# so we don't match phone numbers or postal codes.
+CARE_SCALE_PATTERNS = [
+    re.compile(r"(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?)\s*(?:\+|plus)?\s*(?:mio\.?|millionen?)\s+(?:kunden|versicherte|patienten|nutzer)", re.IGNORECASE),
+    re.compile(r"(\d{1,3}(?:[.,]\d{3})*)\s*\+?\s*(kunden|versicherte|patienten|nutzer|menschen)", re.IGNORECASE),
+    re.compile(r"(\d{1,4})\s*\+?\s*(?:mitarbeiter|mitarbeitenden?|angestellte)", re.IGNORECASE),
+    re.compile(r"(\d{1,3})\s*\+?\s*(?:krankenkassen|pflegekassen|kassenpartner|vertragspartner)", re.IGNORECASE),
+    re.compile(r"(\d{1,3})\s*\+?\s*(?:standorte|niederlassungen|filialen)", re.IGNORECASE),
+    re.compile(r"(bundesweit|deutschlandweit|europaweit|europaweit\s+t[äa]tig)", re.IGNORECASE),
+]
+
+# IK-Nummer is the Institutionskennzeichen issued by the
+# Arbeitsgemeinschaft Institutionskennzeichen. It is a 9-digit number
+# required for every contract partner of the statutory funds. Two
+# layered detectors: prefer the explicit "IK-Nr ..." prefix because
+# imprints contain other 9-digit numbers (handelsregister, telefon).
+# Variants spotted in real imprints: "IK", "IK-Nr", "IK Nummer",
+# "IKNummer", "Institutionskennzeichen" (standard) and
+# "Institutskennzeichen" (variant used e.g. by hygibox.de).
+_IK_EXPLICIT_PATTERN = re.compile(
+    r"(?:IK[ \-]?(?:Nr\.?|Nummer)?|Instituts(?:ions)?kennzeichen)\s*[:\.]?\s*(\d{9})",
+    re.IGNORECASE,
+)
+_IK_NEARBY_DIGITS_PATTERN = re.compile(r"\b(\d{9})\b")
+
 PRODUCT_MARKERS = [
     '"@type":"product"',
     '"@type": "product"',
@@ -545,6 +703,162 @@ def detect_platform(html: str) -> tuple[str, list[str]]:
         if matched:
             return name, matched
     return "", []
+
+
+# --- Care / Pflege detection helpers --------------------------------
+
+def detect_ik_number(text: str, html: str = "") -> str:
+    """Extract the 9-digit Institutionskennzeichen from imprint text.
+
+    Two-step strategy: first look for an explicit IK label (high
+    confidence), otherwise look for a 9-digit number near the German
+    word "Institutionskennzeichen" or "IK" anywhere in the imprint
+    (medium confidence). Returns an empty string if no IK is found.
+    """
+    haystack = (text or "") + " " + (html or "")
+    explicit = _IK_EXPLICIT_PATTERN.search(haystack)
+    if explicit:
+        return explicit.group(1)
+    # Imprints often contain 9-digit handelsregister or postal numbers,
+    # so a bare 9-digit number is not enough on its own. Require either
+    # the word "ik" or the German term nearby (within ~60 chars).
+    lower = haystack.lower()
+    for match in _IK_NEARBY_DIGITS_PATTERN.finditer(haystack):
+        start = max(0, match.start() - 60)
+        window = lower[start : match.end()]
+        if (
+            "institutionskennzeichen" in window
+            or "institutskennzeichen" in window
+            or " ik " in window
+            or "ik-" in window
+            or "ik:" in window
+        ):
+            return match.group(1)
+    return ""
+
+
+def detect_care_signals(text: str, html: str = "") -> dict[str, list[str]]:
+    """Detect product / GKV / process / insurer markers on a care site."""
+    haystack = ((text or "") + " " + (html or "")).lower()
+    return {
+        "product": matching_terms(haystack, CARE_PRODUCT_MARKERS),
+        "gkv": matching_terms(haystack, CARE_GKV_MARKERS),
+        "process": matching_terms(haystack, CARE_PROCESS_MARKERS),
+        "insurers": matching_terms(haystack, CARE_GKV_INSURERS),
+        "ratgeber": matching_terms(haystack, CARE_RATGEBER_TERMS),
+    }
+
+
+def detect_scale_indicators(text: str) -> list[str]:
+    """Extract scale claims (X+ Kunden / Mitarbeiter / Kassen / etc.)."""
+    found: list[str] = []
+    sample = text or ""
+    for pattern in CARE_SCALE_PATTERNS:
+        for match in pattern.finditer(sample):
+            snippet = match.group(0).strip()
+            # Normalise whitespace so duplicates collapse
+            snippet = re.sub(r"\s+", " ", snippet)
+            if snippet and snippet not in found:
+                found.append(snippet)
+    return found
+
+
+def classify_lead_care(
+    care_signals: dict[str, list[str]],
+    ik_number: str,
+    scale_indicators: list[str],
+) -> tuple[str, str]:
+    """Classify a care-niche lead.
+
+    Returns (lead_type, exclusion_reason). lead_type is one of
+    "pflegebox_anbieter", "review", "ratgeber_site", "rejected".
+    """
+    product_hits = len(care_signals.get("product", []))
+    gkv_hits = len(care_signals.get("gkv", []))
+    process_hits = len(care_signals.get("process", []))
+    ratgeber_hits = len(care_signals.get("ratgeber", []))
+
+    # Strong ratgeber signal with no provider signal at all → reject.
+    # Defensive: 3+ ratgeber terms AND no provider order flow indicates
+    # a Kassen-/Pflegeportal page rather than a real provider.
+    if ratgeber_hits >= 3 and process_hits == 0 and not ik_number:
+        return "ratgeber_site", "ratgeber_or_content_site"
+
+    # Confirmed provider: IK number found, plus product or process
+    # vocabulary → "pflegebox_anbieter" classification.
+    if ik_number and (product_hits >= 1 or process_hits >= 1):
+        return "pflegebox_anbieter", ""
+
+    # Strong content signals but no IK → likely a provider but the
+    # imprint was not reachable in this run. Park as review.
+    if product_hits >= 2 and gkv_hits >= 2 and process_hits >= 1:
+        return "pflegebox_anbieter", ""
+
+    # Mixed signals: some product mentions but no order flow / no IK.
+    if product_hits >= 1 or process_hits >= 1:
+        return "review", "weak_care_signals"
+
+    # No care signal whatsoever — generic shop or unrelated site.
+    return "rejected", "no_care_signals"
+
+
+def score_fit_care(
+    lead_type: str,
+    ik_number: str,
+    care_signals: dict[str, list[str]],
+    scale_indicators: list[str],
+    is_dach: bool,
+    email: str,
+    phone: str,
+) -> int:
+    """Score a care-niche lead.
+
+    A++ requires IK + scale signals.
+    A+  requires IK + multiple GKV signals.
+    A   requires IK alone, or product + process + GKV without IK.
+    B   requires product + process without IK or strong GKV.
+    Anything else clamps below review threshold.
+    """
+    if lead_type in {"rejected", "ratgeber_site"}:
+        return 0
+
+    score = 0
+    if ik_number:
+        score += 35
+    score += min(15, 5 * len(care_signals.get("product", [])))
+    score += min(15, 3 * len(care_signals.get("gkv", [])))
+    score += min(10, 5 * len(care_signals.get("process", [])))
+    score += min(10, 2 * len(care_signals.get("insurers", [])))
+    score += min(10, 4 * len(scale_indicators))
+    if is_dach:
+        score += 5
+    if email:
+        score += 4
+    if phone:
+        score += 3
+
+    # Review classification clamps below the verified threshold so the
+    # downstream grade falls into the manual-review bucket.
+    if lead_type == "review":
+        score = min(score, 55)
+    return min(score, 100)
+
+
+def next_action_care(lead_type: str, score: int, ik_number: str) -> str:
+    if lead_type == "rejected":
+        return "reject"
+    if lead_type == "ratgeber_site":
+        return "reject"
+    if lead_type == "review":
+        return "manual_review"
+    # pflegebox_anbieter
+    if score >= 85 and ik_number:
+        return "loom_candidate"
+    if score >= 65:
+        return "manual_review_high"
+    if ik_number:
+        return "manual_review_ik_verified"
+    return "manual_review_no_ik"
 
 
 def classify_lead(
@@ -820,27 +1134,52 @@ def qualify_row(
     )
     detected_platform, detected_platform_signals = detect_platform(html)
 
-    lead_type, exclusion_reason = classify_lead(
-        domain=domain,
-        text=text,
-        html=html,
-        is_shop=is_shop,
-        confirmed_woocommerce_shop=confirmed_woocommerce_shop,
-        detected_platform=detected_platform,
-    )
-    score = score_fit(
-        lead_type=lead_type,
-        is_shop=is_shop,
-        is_woocommerce=is_woocommerce,
-        is_dach=is_dach,
-        email=email,
-        phone=phone,
-        product_schema=bool(product_terms),
-        shipping_payment=bool(shipping_payment_terms),
-        tracking=tracking_terms,
-        legal_trust=bool(legal_terms),
-        avg_response_ms=avg_response_ms,
-    )
+    # Care / Pflege detection runs for every row; whether its result
+    # overrides the e-commerce classification is decided by `niche`.
+    care_signals = detect_care_signals(text, html)
+    ik_number = detect_ik_number(text, html)
+    scale_indicators = detect_scale_indicators(text)
+    niche = str(policy.get("niche") or "pflegebox").strip().lower()
+
+    if niche == "pflegebox":
+        lead_type, exclusion_reason = classify_lead_care(
+            care_signals=care_signals,
+            ik_number=ik_number,
+            scale_indicators=scale_indicators,
+        )
+        score = score_fit_care(
+            lead_type=lead_type,
+            ik_number=ik_number,
+            care_signals=care_signals,
+            scale_indicators=scale_indicators,
+            is_dach=is_dach,
+            email=email,
+            phone=phone,
+        )
+        care_lead_type = lead_type
+    else:
+        lead_type, exclusion_reason = classify_lead(
+            domain=domain,
+            text=text,
+            html=html,
+            is_shop=is_shop,
+            confirmed_woocommerce_shop=confirmed_woocommerce_shop,
+            detected_platform=detected_platform,
+        )
+        score = score_fit(
+            lead_type=lead_type,
+            is_shop=is_shop,
+            is_woocommerce=is_woocommerce,
+            is_dach=is_dach,
+            email=email,
+            phone=phone,
+            product_schema=bool(product_terms),
+            shipping_payment=bool(shipping_payment_terms),
+            tracking=tracking_terms,
+            legal_trust=bool(legal_terms),
+            avg_response_ms=avg_response_ms,
+        )
+        care_lead_type = ""
     levers = possible_levers(
         is_shop=is_shop,
         is_woocommerce=is_woocommerce,
@@ -879,6 +1218,11 @@ def qualify_row(
             request_count=request_count,
         )
 
+    if niche == "pflegebox":
+        action = next_action_care(lead_type, score, ik_number)
+    else:
+        action = next_action(lead_type, score, is_woocommerce)
+
     return {
         "domain": domain,
         "source_url": source_url,
@@ -889,9 +1233,18 @@ def qualify_row(
         "is_woocommerce": "yes" if is_woocommerce else "no",
         "detected_platform": detected_platform,
         "detected_platform_signals": "|".join(detected_platform_signals),
+        "niche": niche,
+        "care_lead_type": care_lead_type,
+        "ik_number": ik_number,
+        "care_product_signals": "|".join(care_signals.get("product", [])),
+        "care_gkv_signals": "|".join(care_signals.get("gkv", [])),
+        "care_process_signals": "|".join(care_signals.get("process", [])),
+        "care_insurer_signals": "|".join(care_signals.get("insurers", [])),
+        "care_ratgeber_signals": "|".join(care_signals.get("ratgeber", [])),
+        "scale_indicators": "|".join(scale_indicators),
         "is_dach": "yes" if is_dach else "no",
         "vhd_fit_score": str(score),
-        "next_action": next_action(lead_type, score, is_woocommerce),
+        "next_action": action,
         "exclusion_reason": exclusion_reason,
         "email": email,
         "phone": phone,
@@ -916,6 +1269,10 @@ def qualify_row(
     }
 
 
+VERIFIED_LEAD_TYPES = {"shop", "pflegebox_anbieter"}
+REVIEW_LEAD_TYPES = {"shop", "pflegebox_anbieter", "review", "unknown"}
+
+
 def split_outputs(rows: list[dict[str, str]], verified_min_score: int) -> tuple[list[dict[str, str]], list[dict[str, str]], list[dict[str, str]]]:
     verified = []
     review = []
@@ -925,9 +1282,9 @@ def split_outputs(rows: list[dict[str, str]], verified_min_score: int) -> tuple[
         if lead_type == "skipped":
             continue
         score = int(row.get("vhd_fit_score") or 0)
-        if lead_type == "shop" and score >= verified_min_score:
+        if lead_type in VERIFIED_LEAD_TYPES and score >= verified_min_score:
             verified.append(row)
-        elif lead_type in {"shop", "review", "unknown"} and row.get("next_action") != "reject":
+        elif lead_type in REVIEW_LEAD_TYPES and row.get("next_action") != "reject":
             review.append(row)
         else:
             rejected.append(row)
