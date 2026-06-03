@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 from copy import deepcopy
 
-from vhd_lead_system.google_sheets_adapter import (
+from care_lead_system.google_sheets_adapter import (
     CLAY_QUEUE_COLUMNS,
     CLAY_QUEUE_TAB,
     CLAY_RESULTS_COLUMNS,
@@ -12,9 +12,9 @@ from vhd_lead_system.google_sheets_adapter import (
     import_clay_results_from_sheet,
     sync_clay_queue_to_sheet,
 )
-from vhd_lead_system.import_scrapes import import_scrape_files
-from vhd_lead_system.lead_to_clay_adapter import export_clay_queue
-from vhd_lead_system.master_store import MasterStore
+from care_lead_system.import_scrapes import import_scrape_files
+from care_lead_system.lead_to_clay_adapter import export_clay_queue
+from care_lead_system.master_store import MasterStore
 
 
 class FakeSheetsClient:

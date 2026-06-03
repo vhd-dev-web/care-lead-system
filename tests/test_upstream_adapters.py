@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import csv
 
-from vhd_lead_system.enrichment_results_adapter import import_enrichment_results
-from vhd_lead_system.master_store import MasterStore
-from vhd_lead_system.verification_adapter import import_verification_results
+from care_lead_system.enrichment_results_adapter import import_enrichment_results
+from care_lead_system.master_store import MasterStore
+from care_lead_system.verification_adapter import import_verification_results
 
 
 def write_semicolon_csv(path, rows):

@@ -1,4 +1,4 @@
-# vhd-lead-system
+# care-lead-system
 
 Zentrales, master-first Lead-System fuer VHD. Das Root-Paket ist als
 Monolith installierbar und enthaelt Scraping, Verification/Scoring,
@@ -61,13 +61,13 @@ Der Installationspunkt fuer Obsidian/Codex liegt in `OBSIDIAN_INSTALL.md`.
 Der empfohlene Erstlauf ist:
 
 ```powershell
-vhd-lead-system setup
+care-lead-system setup
 ```
 
 Wenn noch kein Script-Pfad aktiv ist:
 
 ```powershell
-python -m vhd_lead_system.cli --root . setup
+python -m care_lead_system.cli --root . setup
 ```
 
 Der Setup-Wizard fragt Provider-Freigaben, API-Keys, Google-Sheets-Zugang und
@@ -78,38 +78,38 @@ damit fruehere Kontakte nicht verloren gehen.
 Nach dem Setup kann Obsidian den Standardlauf starten:
 
 ```powershell
-.\scripts\run_vhd_lead_system.ps1
+.\scripts\run_care_lead_system.ps1
 ```
 
 ## CLI-Beispiele
 
 ```powershell
-python -m vhd_lead_system.cli --root . import-scrapes `
+python -m care_lead_system.cli --root . import-scrapes `
   output/raw_scrapes/list_1.csv `
   output/raw_scrapes/list_2.csv `
   output/raw_scrapes/list_3.csv `
   output/raw_scrapes/list_4.csv
 
-python -m vhd_lead_system.cli --root . import-verification output/exports/verification_results.csv
-python -m vhd_lead_system.cli --root . import-enrichment-results output/enrichment/enriched_master.csv
-python -m vhd_lead_system.cli --root . plan-enrichment
-python -m vhd_lead_system.cli --root . export-master-xlsx
-python -m vhd_lead_system.cli --root . export-clay-queue --batch-id clay_batch_001
-python -m vhd_lead_system.cli --root . import-clay-results output/lead_to_clay/clay_results.csv
+python -m care_lead_system.cli --root . import-verification output/exports/verification_results.csv
+python -m care_lead_system.cli --root . import-enrichment-results output/enrichment/enriched_master.csv
+python -m care_lead_system.cli --root . plan-enrichment
+python -m care_lead_system.cli --root . export-master-xlsx
+python -m care_lead_system.cli --root . export-clay-queue --batch-id clay_batch_001
+python -m care_lead_system.cli --root . import-clay-results output/lead_to_clay/clay_results.csv
 ```
 
 Direkte Modulbefehle im Monolith:
 
 ```powershell
-python -m vhd_lead_system.cli scrape --provider brave --budget-calls 5 --query-limit 5
-python -m vhd_lead_system.cli verify --input output/raw_scrapes/qualified_master.csv --mode deep
-python -m vhd_lead_system.cli enrich run-waterfall --verified output/runs/verification_YYYY/verified_leads.csv
+python -m care_lead_system.cli scrape --provider brave --budget-calls 5 --query-limit 5
+python -m care_lead_system.cli verify --input output/raw_scrapes/qualified_master.csv --mode deep
+python -m care_lead_system.cli enrich run-waterfall --verified output/runs/verification_YYYY/verified_leads.csv
 ```
 
 Ein Standardlauf fuer Obsidian/Automation:
 
 ```powershell
-python -m vhd_lead_system.cli --root . run-pipeline `
+python -m care_lead_system.cli --root . run-pipeline `
   --provider brave `
   --budget-calls 5 `
   --query-limit 5 `
@@ -142,15 +142,15 @@ Google-Sheet, das mit diesem Service Account geteilt ist.
 $env:VHD_GOOGLE_SPREADSHEET_ID = "..."
 $env:GOOGLE_APPLICATION_CREDENTIALS = "C:\path\to\service-account.json"
 
-python -m vhd_lead_system.cli --root . setup-google-sheet
-python -m vhd_lead_system.cli --root . sync-google-clay-queue --batch-id gclay_batch_001
-python -m vhd_lead_system.cli --root . import-google-clay-results
+python -m care_lead_system.cli --root . setup-google-sheet
+python -m care_lead_system.cli --root . sync-google-clay-queue --batch-id gclay_batch_001
+python -m care_lead_system.cli --root . import-google-clay-results
 ```
 
 Alternativ kann die Sheet-ID direkt uebergeben werden:
 
 ```powershell
-python -m vhd_lead_system.cli --root . --spreadsheet-id "..." sync-google-clay-queue
+python -m care_lead_system.cli --root . --spreadsheet-id "..." sync-google-clay-queue
 ```
 
 ## Upstream-Repo-Integration
@@ -159,7 +159,7 @@ Der aktuelle Integrations-Audit liegt in `docs/integration-audit.md`.
 
 Kurzstand:
 
-- `vhd-lead-scraper`: Search- und Verification-CSV-Outputs sind importierbar.
+- `care-lead-scraper`: Search- und Verification-CSV-Outputs sind importierbar.
 - `vhd-lead-scoring-operator`: Vertrags-/Schema-Repo; noch kein stabiler
   Scorer-Entrypoint.
 - `vhd-lead-enrichment`: `enriched_master.csv`, `enrichment_queue.csv` und

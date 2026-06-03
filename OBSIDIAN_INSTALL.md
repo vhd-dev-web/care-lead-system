@@ -26,7 +26,7 @@ $env:VHD_LEAD_PYTHON = "C:\Pfad\zu\python.exe"
 ## 2. Setup-Wizard starten
 
 ```powershell
-vhd-lead-system setup
+care-lead-system setup
 ```
 
 Der Wizard fragt:
@@ -50,7 +50,7 @@ dem System liegen bleibt.
 crawler_policy.json
 config/enrichment_policy.json
 config/install_profile.json
-scripts/run_vhd_lead_system.ps1
+scripts/run_care_lead_system.ps1
 data/master/leads_master.csv
 data/master/Leads_Master.xlsx
 ```
@@ -63,7 +63,7 @@ Secrets und persoenliche Laufprofile werden nicht ins Repo gepusht.
 Nach dem Setup kann Obsidian/Codex den Standardlauf so starten:
 
 ```powershell
-.\scripts\run_vhd_lead_system.ps1
+.\scripts\run_care_lead_system.ps1
 ```
 
 Der Lauf fuehrt aus:
@@ -102,7 +102,7 @@ Voraussetzungen einmalig:
 4. Einmalig die Tabs anlegen:
 
 ```powershell
-vhd-lead-system setup-google-sheet
+care-lead-system setup-google-sheet
 ```
 
 Das legt die festen Tabs `Clay Queue`, `Clay Results`, `Sync Log` an. Bei
@@ -120,19 +120,19 @@ Verhalten der Pipeline:
 Fuer einen schnellen Start mit Brave, ohne Provider-Enrichment:
 
 ```powershell
-vhd-lead-system setup --yes --allow-brave --no-serper --no-firecrawl --no-tavily
+care-lead-system setup --yes --allow-brave --no-serper --no-firecrawl --no-tavily
 ```
 
 Mit bestehender Lead-Datei:
 
 ```powershell
-vhd-lead-system setup --yes --allow-brave --existing-leads "C:\Pfad\leads.csv"
+care-lead-system setup --yes --allow-brave --existing-leads "C:\Pfad\leads.csv"
 ```
 
 Mit Google Sheets:
 
 ```powershell
-vhd-lead-system setup --yes --allow-brave --allow-google-sheets `
+care-lead-system setup --yes --allow-brave --allow-google-sheets `
   --spreadsheet-id "GOOGLE_SHEET_ID" `
   --google-credentials "C:\Pfad\service-account.json"
 ```

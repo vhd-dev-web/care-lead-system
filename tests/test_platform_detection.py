@@ -9,13 +9,13 @@ from __future__ import annotations
 
 import pytest
 
-from vhd_lead_system.scraper.lead_qualifier import (
+from care_lead_system.scraper.lead_qualifier import (
     PLATFORM_MARKERS,
     TARGET_PLATFORM,
     classify_lead,
     detect_platform,
 )
-from vhd_lead_system.verification_adapter import grade_from_verification_row
+from care_lead_system.verification_adapter import grade_from_verification_row
 
 
 WOOCOMMERCE_HTML = """

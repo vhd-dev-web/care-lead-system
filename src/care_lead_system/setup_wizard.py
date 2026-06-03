@@ -339,7 +339,7 @@ def write_run_script(
 ) -> Path:
     scripts_dir = root / "scripts"
     scripts_dir.mkdir(parents=True, exist_ok=True)
-    path = scripts_dir / "run_vhd_lead_system.ps1"
+    path = scripts_dir / "run_care_lead_system.ps1"
     args = [
         '"--root"',
         '"$Root"',
@@ -371,7 +371,7 @@ $RunArgs = @(
   {', '.join(args)}
 )
 
-& $Python -m vhd_lead_system.cli @RunArgs
+& $Python -m care_lead_system.cli @RunArgs
 """
     path.write_text(script, encoding="utf-8")
     return path

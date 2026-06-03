@@ -4,8 +4,8 @@ import csv
 import json
 from pathlib import Path
 
-from vhd_lead_system.master_store import MasterStore
-from vhd_lead_system.setup_wizard import run_setup_wizard
+from care_lead_system.master_store import MasterStore
+from care_lead_system.setup_wizard import run_setup_wizard
 
 
 def test_setup_wizard_creates_local_profile_and_imports_existing_leads(tmp_path: Path) -> None:
@@ -39,7 +39,7 @@ def test_setup_wizard_creates_local_profile_and_imports_existing_leads(tmp_path:
     assert (tmp_path / "crawler_policy.json").exists()
     assert (tmp_path / "config" / "enrichment_policy.json").exists()
     assert (tmp_path / "config" / "install_profile.json").exists()
-    assert (tmp_path / "scripts" / "run_vhd_lead_system.ps1").exists()
+    assert (tmp_path / "scripts" / "run_care_lead_system.ps1").exists()
     assert (tmp_path / "data" / "master" / "leads_master.csv").exists()
     assert (tmp_path / "data" / "master" / "Leads_Master.xlsx").exists()
 

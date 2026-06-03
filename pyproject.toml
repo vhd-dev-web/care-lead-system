@@ -1,7 +1,7 @@
 [project]
-name = "vhd-lead-system"
+name = "care-lead-system"
 version = "0.1.0"
-description = "Central master-first lead system for VHD lead workflows."
+description = "Lead system for German Pflegehilfsmittel / Pflegebox providers (forked from vhd-lead-system)."
 requires-python = ">=3.11"
 dependencies = [
     "beautifulsoup4>=4.12",
@@ -18,11 +18,11 @@ google = [
 ]
 
 [project.scripts]
-vhd-enrich = "lead_enrichment.cli:main"
-vhd-lead-scrape = "vhd_lead_system.scraper.woocommerce_lead_finder:main"
-vhd-lead-setup = "vhd_lead_system.setup_wizard:main"
-vhd-lead-verify = "vhd_lead_system.scraper.lead_qualifier:main"
-vhd-lead-system = "vhd_lead_system.cli:main"
+care-enrich = "lead_enrichment.cli:main"
+care-lead-scrape = "care_lead_system.scraper.woocommerce_lead_finder:main"
+care-lead-setup = "care_lead_system.setup_wizard:main"
+care-lead-verify = "care_lead_system.scraper.lead_qualifier:main"
+care-lead-system = "care_lead_system.cli:main"
 
 [build-system]
 requires = ["setuptools>=61"]

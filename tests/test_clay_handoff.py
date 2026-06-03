@@ -3,10 +3,10 @@ from __future__ import annotations
 import csv
 from pathlib import Path
 
-from vhd_lead_system.import_scrapes import import_scrape_files
-from vhd_lead_system.lead_to_clay_adapter import export_clay_queue, import_clay_results
-from vhd_lead_system.master_store import MasterStore
-from vhd_lead_system.master_updater import MasterUpdater
+from care_lead_system.import_scrapes import import_scrape_files
+from care_lead_system.lead_to_clay_adapter import export_clay_queue, import_clay_results
+from care_lead_system.master_store import MasterStore
+from care_lead_system.master_updater import MasterUpdater
 
 
 def write_csv(path, rows):

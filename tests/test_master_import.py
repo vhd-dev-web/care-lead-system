@@ -2,10 +2,10 @@ from __future__ import annotations
 
 import csv
 
-from vhd_lead_system.import_scrapes import import_scrape_files
-from vhd_lead_system.master_schema import MASTER_COLUMNS
-from vhd_lead_system.master_store import MasterStore
-from vhd_lead_system.verification_adapter import import_verification_results
+from care_lead_system.import_scrapes import import_scrape_files
+from care_lead_system.master_schema import MASTER_COLUMNS
+from care_lead_system.master_store import MasterStore
+from care_lead_system.verification_adapter import import_verification_results
 
 
 def write_csv(path, rows):

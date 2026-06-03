@@ -1,0 +1,2 @@
+lead_id;domain;personal_email;email_verification_status;email_source
+lead_example123;example-shop.de;max.mustermann@example-shop.de;verified;clay_manual_import

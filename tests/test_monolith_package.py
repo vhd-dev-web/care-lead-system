@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import csv
 
-from vhd_lead_system.pipeline_runner import PipelineOptions, run_pipeline
-from vhd_lead_system.scraper.lead_qualifier import main as verify_main
-from vhd_lead_system.scraper.woocommerce_lead_finder import main as scrape_main
+from care_lead_system.pipeline_runner import PipelineOptions, run_pipeline
+from care_lead_system.scraper.lead_qualifier import main as verify_main
+from care_lead_system.scraper.woocommerce_lead_finder import main as scrape_main
 
 
 def write_semicolon_csv(path, rows):

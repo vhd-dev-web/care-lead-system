@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import csv
 
-from vhd_lead_system.enrichment_planner import plan_enrichment
-from vhd_lead_system.import_scrapes import import_scrape_files
-from vhd_lead_system.master_store import MasterStore
+from care_lead_system.enrichment_planner import plan_enrichment
+from care_lead_system.import_scrapes import import_scrape_files
+from care_lead_system.master_store import MasterStore
 
 
 def write_csv(path, rows):

@@ -3,24 +3,24 @@
 Audit date: 2026-05-28
 
 This pass checked the four intended upstream repositories against the
-master-first `vhd-lead-system` architecture. The rule remains unchanged:
+master-first `care-lead-system` architecture. The rule remains unchanged:
 `data/master/leads_master.csv` is the only persisted truth; upstream CSVs,
 Google Sheets, Clay queues, reviews, and archives are handoffs.
 
 Update: the root package now vendors the executable scraper/verifier modules
-and the `lead_enrichment` waterfall, so a solo `vhd-lead-system` install can
+and the `lead_enrichment` waterfall, so a solo `care-lead-system` install can
 run the standard pipeline without installing the old split repos separately.
 
 ## Repositories Checked
 
 | Repo | Audited ref | State | Integration status |
 | --- | --- | --- | --- |
-| `vhd-dev-web/vhd-lead-scraper` | `346995d` | Active Python/PowerShell scraper and verifier | Importable now through scrape import and verification import |
+| `vhd-dev-web/care-lead-scraper` | `346995d` | Active Python/PowerShell scraper and verifier | Importable now through scrape import and verification import |
 | `vhd-dev-web/vhd-lead-scoring-operator` | `29d1cea` | Operator contract/runbook repo, no executable scorer | Contract mapped where possible; waits for stable scorer script |
 | `vhd-dev-web/vhd-lead-enrichment` | `cc32713` | Active Python enrichment waterfall | Importable now through enrichment result import |
 | `vhd-dev-web/lead-to-clay` | `cc32713` | Active Python Clay/enrichment waterfall, currently code-identical to `vhd-lead-enrichment` | Queue/final outputs are importable through enrichment result import; local Clay CSV/Google handoff remains canonical |
 
-## vhd-lead-scraper
+## care-lead-scraper
 
 Relevant entrypoints:
 
