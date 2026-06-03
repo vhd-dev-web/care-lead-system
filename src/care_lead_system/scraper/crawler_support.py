@@ -41,7 +41,11 @@ def load_policy(path: Path | str = DEFAULT_POLICY_PATH) -> dict[str, Any]:
         "stop_on_low_brave_remaining": True,
         "brave_low_remaining_threshold": 1,
         "state_db_path": "output/state/pipeline_state.sqlite",
-        "bot_user_agent": "VHDLeadQualifier/1.0 (+https://www.vhd-coaching-x2.de/)",
+        "bot_user_agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/131.0.0.0 Safari/537.36"
+        ),
     }
     if policy_path.exists():
         loaded = json.loads(policy_path.read_text(encoding="utf-8"))

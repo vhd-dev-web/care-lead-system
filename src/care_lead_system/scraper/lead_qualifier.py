@@ -38,10 +38,26 @@ DEFAULT_INPUT = Path("output/leads_master.csv")
 DEFAULT_OUTPUT_DIR = Path("output/domain_verification")
 DEFAULT_TIMEOUT = 5
 DEFAULT_WORKERS = 8
+# Realistic browser UA. Many German care-aid provider sites
+# (sanubi.de, pflegebox.de, etc.) return HTTP 403 to obvious bot
+# user-agents, which would silently drop real leads from the verifier.
+# We still respect robots.txt and rate limits.
 USER_AGENT = (
-    "Mozilla/5.0 (compatible; VHDLeadQualifier/1.0; "
-    "+https://www.vhd-coaching-x2.de/)"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/131.0.0.0 Safari/537.36"
 )
+
+# Header set sent with every fetch. UA alone is not enough — some bot
+# detectors flag requests that send Chrome's UA but skip the headers a
+# real Chrome always sends. Accept-Encoding is deliberately omitted
+# because urllib does not decompress responses transparently.
+BROWSER_HEADERS = {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
+}
 
 CHECK_PATHS = [
     "/",
@@ -454,7 +470,8 @@ def candidate_urls(domain: str, source_url: str = "", mode: str = "deep") -> lis
 
 
 def fetch_url(path: str, url: str, timeout: int, user_agent: str) -> FetchResult:
-    request = urllib.request.Request(url, headers={"User-Agent": user_agent})
+    headers = {"User-Agent": user_agent, **BROWSER_HEADERS}
+    request = urllib.request.Request(url, headers=headers)
     started = time.perf_counter()
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:

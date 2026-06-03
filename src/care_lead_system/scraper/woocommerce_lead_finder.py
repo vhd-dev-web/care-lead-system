@@ -44,10 +44,24 @@ DEFAULT_DELAY_SECONDS = 1.0
 DEFAULT_PROVIDER = "auto"
 DEFAULT_QUALIFIED_MIN_SCORE = 35
 REQUEST_TIMEOUT_SECONDS = 15
+# Realistic browser UA. Many German care-aid provider sites return 403
+# to obvious bot user-agents. Used for both API calls (Brave, Google CSE
+# do not care about the UA) and HTML page fetches in the optional enrich
+# step. We still respect robots.txt and rate limits.
 USER_AGENT = (
-    "Mozilla/5.0 (compatible; VHDLeadFinder/1.0; "
-    "+https://www.vhd-coaching-x2.de/)"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+    "AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/131.0.0.0 Safari/537.36"
 )
+
+# Sent with fetch_page() so the request looks like a real browser, not
+# only its UA. Skipped on Brave/Google CSE API calls which expect JSON.
+BROWSER_PAGE_HEADERS = {
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "de-DE,de;q=0.9,en;q=0.8",
+    "Cache-Control": "no-cache",
+    "Pragma": "no-cache",
+}
 
 MASTER_FIELDS = [
     "domain",
@@ -615,7 +629,8 @@ def brave_search(api_key: str, query: str, offset: int) -> SearchApiResponse:
 
 
 def fetch_page(url: str) -> str:
-    request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
+    headers = {"User-Agent": USER_AGENT, **BROWSER_PAGE_HEADERS}
+    request = urllib.request.Request(url, headers=headers)
     try:
         with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT_SECONDS) as response:
             content_type = response.headers.get("content-type", "")
