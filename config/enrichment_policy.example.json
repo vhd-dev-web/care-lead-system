@@ -1,0 +1,35 @@
+{
+  "website_enrichment_daily_limit": 20,
+  "firecrawl_daily_limit": 10,
+  "serper_daily_limit": 20,
+  "tavily_daily_limit": 5,
+  "clay_daily_limit": 2,
+  "clay_monthly_limit": 10,
+  "max_serper_queries_b_lead": 2,
+  "max_serper_queries_a_plus_plus_lead": 4,
+  "website_pages_per_domain": 7,
+  "website_paths": [
+    "/",
+    "/impressum",
+    "/imprint",
+    "/kontakt",
+    "/contact",
+    "/datenschutz",
+    "/ueber-uns",
+    "/team"
+  ],
+  "providers": {
+    "serper": {
+      "enabled": false
+    },
+    "firecrawl": {
+      "enabled": false
+    },
+    "tavily": {
+      "enabled": false
+    },
+    "clay": {
+      "enabled": false
+    }
+  }
+}

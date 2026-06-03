@@ -1,0 +1,13 @@
+priority_thresholds:
+  A: 75
+  B: 55
+  C: 40
+pain_weights:
+  checkout_payment_shipping_review: 25
+  conversion_path_review: 25
+  tracking_gap_possible: 20
+  clarity_heatmap_opportunity: 18
+  gtm_setup_check: 18
+  performance_check: 15
+  product_data_schema_check: 14
+  woocommerce_growth_system: 20

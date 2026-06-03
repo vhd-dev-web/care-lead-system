@@ -1,0 +1,17 @@
+{
+  "brave_daily_limit": 60,
+  "domain_scoring_daily_limit": 60,
+  "deep_scoring_daily_limit": 30,
+  "max_parallel_requests": 2,
+  "domain_delay_seconds_min": 8,
+  "domain_delay_seconds_max": 25,
+  "page_delay_seconds_min": 2,
+  "page_delay_seconds_max": 5,
+  "domain_cooldown_days": 14,
+  "robots_txt_enabled": true,
+  "stop_status_codes": [403, 429, 503],
+  "stop_on_low_brave_remaining": true,
+  "brave_low_remaining_threshold": 1,
+  "state_db_path": "output/state/pipeline_state.sqlite",
+  "bot_user_agent": "VHDLeadQualifier/1.0 (+https://www.vhd-coaching-x2.de/)"
+}

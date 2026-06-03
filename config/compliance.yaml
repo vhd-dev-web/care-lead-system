@@ -1,0 +1,13 @@
+default_channel_order:
+  - phone_main
+  - manual_linkedin_research
+  - personalized_follow_up_after_contact
+  - postal_manual_one_off
+prohibited_automation:
+  - guessed_personal_emails
+  - linkedin_mass_scraping
+  - automated_contact_form_submissions
+  - automated_cold_email_sequences
+  - third_party_data_without_review
+manual_review_confidence_below: 0.70
+require_phone_for_outreach_ready: true

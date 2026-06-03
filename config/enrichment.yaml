@@ -1,0 +1,17 @@
+mode: csv-only
+input_path: data/input/verified_master.csv
+output_dir: data/output
+limit: 30
+min_priority_for_website: B
+website_pages_per_domain: 3
+website_paths:
+  - /
+  - /impressum
+  - /kontakt
+  - /ueber-uns
+  - /team
+enrichment_daily_limit: 30
+enrichment_page_daily_limit: 90
+enrichment_delay_seconds_min: 8
+enrichment_delay_seconds_max: 25
+robots_txt_enabled: true
