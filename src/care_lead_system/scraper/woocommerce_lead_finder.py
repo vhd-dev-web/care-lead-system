@@ -287,6 +287,57 @@ BRAVE_NICHE_QUERY_PATTERNS = [
     "WooCommerce {niche} Online Shop Deutschland " + BRAVE_NEGATIVE_TERMS,
 ]
 
+# --- Pflegehilfsmittel / Pflegebox ICP ---------------------------------
+# Targeted at German Pflegebox / Pflegehilfsmittel-zum-Verbrauch providers
+# (40-42€/month GKV-funded care aid kits). All six reference providers we
+# analysed (pflegemittelbox, sanubi, pflegebox, mein-pflegeset, box4pflege,
+# hygibox) share the same vocabulary: "Pflegebox", "Pflegekasse", "§40/42
+# SGB XI", "Pflegegrad", a 9-digit IK-Nummer in the imprint, and a typical
+# 3-5 step Antrag/Konfigurator flow.
+#
+# Negative terms strip out the noise of this market: kassen-side info pages,
+# pflegeportals/ratgeber that aren't providers, comparison sites, the bund
+# /sozialgesetzbuch references themselves, and care-services that bill SGB V
+# (Krankenpflege) rather than SGB XI (Pflegehilfsmittel-Verbrauch).
+BRAVE_PFLEGE_NEGATIVE_TERMS = (
+    "-ratgeber -magazin -portal -vergleich -test "
+    "-verbraucherzentrale -stiftung -versicherung.de -bund.de "
+    "-pflegekasse.de -gesetze-im-internet -wikipedia"
+)
+
+BRAVE_PFLEGEBOX_QUERIES = [
+    f'"Pflegebox" "beantragen" "Pflegekasse" {BRAVE_PFLEGE_NEGATIVE_TERMS}',
+    f'"Pflegehilfsmittel zum Verbrauch" "Antrag" {BRAVE_PFLEGE_NEGATIVE_TERMS}',
+    f'"§ 40 SGB XI" "Pflegebox" {BRAVE_PFLEGE_NEGATIVE_TERMS}',
+    f'"§ 40 SGB XI" "Pflegehilfsmittel" Anbieter {BRAVE_PFLEGE_NEGATIVE_TERMS}',
+    f'"Pflegeset" "Kostenübernahme" "Pflegekasse" {BRAVE_PFLEGE_NEGATIVE_TERMS}',
+    f'"Vertragspartner" "Pflegekasse" "Pflegehilfsmittel" {BRAVE_PFLEGE_NEGATIVE_TERMS}',
+    f'"monatlich" "Pflegebox" "Antrag" {BRAVE_PFLEGE_NEGATIVE_TERMS}',
+    f'"Pflegegrad" "Pflegebox" "bestellen" {BRAVE_PFLEGE_NEGATIVE_TERMS}',
+    f'"IK-Nummer" "Pflegebox" Impressum {BRAVE_PFLEGE_NEGATIVE_TERMS}',
+    f'"42 Euro" "Pflegehilfsmittel" "Pflegekasse" {BRAVE_PFLEGE_NEGATIVE_TERMS}',
+    f'"kostenlose Pflegebox" Antrag {BRAVE_PFLEGE_NEGATIVE_TERMS}',
+    f'"Pflegehilfsmittel" "ohne Zuzahlung" Anbieter {BRAVE_PFLEGE_NEGATIVE_TERMS}',
+]
+
+# Sub-niches that can extend the bank when we need more breadth. Each
+# term gets templated into BRAVE_PFLEGE_NICHE_QUERY_PATTERNS so that we
+# generate provider-style queries rather than condition-only queries.
+BRAVE_PFLEGE_NICHE_TERMS = [
+    "Inkontinenz",
+    "Stoma",
+    "Wundversorgung",
+    "Diabetes",
+    "Demenz",
+    "häusliche Pflege",
+]
+
+BRAVE_PFLEGE_NICHE_QUERY_PATTERNS = [
+    '"{niche}" "Pflegehilfsmittel" "Pflegekasse" Anbieter ' + BRAVE_PFLEGE_NEGATIVE_TERMS,
+    '"{niche}" "Pflegebox" beantragen ' + BRAVE_PFLEGE_NEGATIVE_TERMS,
+    '"{niche}" "Vertragspartner" "Pflegekasse" ' + BRAVE_PFLEGE_NEGATIVE_TERMS,
+]
+
 ENRICH_PATHS = ["/", "/impressum", "/impressum.php", "/kontakt", "/kontakt.php"]
 
 
@@ -478,13 +529,39 @@ def score_lead(signals: Iterable[str], email: str, phone: str) -> int:
     return min(score, 100)
 
 
-def build_queries(provider: str = "google") -> list[str]:
+NICHE_PROFILES = ("pflegebox", "woocommerce")
+
+
+def build_queries(provider: str = "google", niche: str = "pflegebox") -> list[str]:
+    """Build the search-query bank for a given provider and ICP niche.
+
+    niche="pflegebox" (the care fork default) returns queries that
+    target German Pflegehilfsmittel / Pflegebox providers.
+
+    niche="woocommerce" keeps the original behaviour so the fork can
+    still be used to find WooCommerce shops if needed.
+    """
+    if niche not in NICHE_PROFILES:
+        raise ValueError(f"Unknown niche '{niche}'. Choose one of {NICHE_PROFILES}.")
+
     queries: list[str] = []
+
+    if niche == "pflegebox":
+        # Pflegebox queries are targeted enough that the same set works
+        # for brave and google CSE — the provider only changes how we
+        # call out, not what we ask for.
+        queries.extend(BRAVE_PFLEGEBOX_QUERIES)
+        for sub_niche in BRAVE_PFLEGE_NICHE_TERMS:
+            for pattern in BRAVE_PFLEGE_NICHE_QUERY_PATTERNS:
+                queries.append(pattern.format(niche=sub_niche))
+        return list(dict.fromkeys(queries))
+
+    # niche == "woocommerce" — original behaviour preserved.
     if provider == "brave":
         queries.extend(BRAVE_BASE_QUERIES)
-        for niche in NICHE_TERMS:
+        for sub_niche in NICHE_TERMS:
             for pattern in BRAVE_NICHE_QUERY_PATTERNS:
-                queries.append(pattern.format(niche=niche))
+                queries.append(pattern.format(niche=sub_niche))
         return list(dict.fromkeys(queries))
 
     tlds = [".de", ".at", ".ch"]
@@ -494,9 +571,9 @@ def build_queries(provider: str = "google") -> list[str]:
             queries.append(pattern.format(tld=tld))
 
     for tld in tlds:
-        for niche in NICHE_TERMS:
+        for sub_niche in NICHE_TERMS:
             for pattern in NICHE_QUERY_PATTERNS:
-                queries.append(pattern.format(tld=tld, niche=niche))
+                queries.append(pattern.format(tld=tld, niche=sub_niche))
 
     deduped = list(dict.fromkeys(queries))
     return deduped
@@ -957,6 +1034,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=DEFAULT_PROVIDER,
         help="Search provider. Use brave for new setups; google only works for legacy CSE customers.",
     )
+    parser.add_argument(
+        "--niche",
+        choices=list(NICHE_PROFILES),
+        default="pflegebox",
+        help="ICP niche. pflegebox (default) targets German Pflegehilfsmittel providers. woocommerce keeps the original e-commerce-shop search bank.",
+    )
     parser.add_argument("--budget-calls", type=int, default=DEFAULT_BUDGET_CALLS)
     parser.add_argument("--pages-per-query", type=int, default=DEFAULT_PAGES_PER_QUERY)
     parser.add_argument("--query-limit", type=int, default=None)
@@ -1009,7 +1092,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"Qualified master CSV: {qualified_master_path}")
         return 0
 
-    queries = build_queries(provider)
+    queries = build_queries(provider, niche=args.niche)
     state = load_state(state_path)
     selected_queries = select_daily_queries(
         queries=queries,

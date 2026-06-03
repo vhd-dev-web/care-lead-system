@@ -71,6 +71,12 @@ def main(argv: list[str] | None = None) -> int:
 
     pipeline = subparsers.add_parser("run-pipeline", help="Run scrape -> verify -> enrich -> Clay handoff.")
     pipeline.add_argument("--provider", choices=["auto", "brave", "google"], default="brave")
+    pipeline.add_argument(
+        "--niche",
+        choices=["pflegebox", "woocommerce"],
+        default="pflegebox",
+        help="ICP niche. pflegebox is the default for this care fork.",
+    )
     pipeline.add_argument("--budget-calls", type=int, default=5)
     pipeline.add_argument("--query-limit", type=int, default=5)
     pipeline.add_argument("--pages-per-query", type=int, default=1)
@@ -158,6 +164,7 @@ def main(argv: list[str] | None = None) -> int:
             PipelineOptions(
                 root_dir=Path(args.root),
                 provider=args.provider,
+                niche=args.niche,
                 budget_calls=args.budget_calls,
                 query_limit=args.query_limit,
                 pages_per_query=args.pages_per_query,

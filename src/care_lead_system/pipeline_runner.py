@@ -23,6 +23,7 @@ from .verification_adapter import import_verification_results
 class PipelineOptions:
     root_dir: Path = Path(".")
     provider: str = "brave"
+    niche: str = "pflegebox"
     budget_calls: int = 5
     query_limit: int | None = 5
     pages_per_query: int = 1
@@ -91,6 +92,8 @@ def run_pipeline(options: PipelineOptions) -> PipelineResult:
         scrape_args = [
             "--provider",
             options.provider,
+            "--niche",
+            options.niche,
             "--budget-calls",
             str(options.budget_calls),
             "--pages-per-query",
