@@ -28,7 +28,12 @@ class PipelineOptions:
     query_limit: int | None = 5
     pages_per_query: int = 1
     search_delay: float = 1.0
-    qualified_min_score: int = 35
+    # The scrape-stage pre-qualifier uses WooCommerce-shop heuristics
+    # (cart/checkout terms in the Brave snippet). Pflegebox snippets
+    # rarely contain that vocabulary, so a high threshold here drops
+    # real care providers. Default is 0 for the care fork — the
+    # verifier does the authoritative classification anyway.
+    qualified_min_score: int = 0
     scrape_enrich: bool = False
     verify_mode: str = "deep"
     verify_limit: int = 0
