@@ -83,11 +83,16 @@ def assess_clay_need(row: dict[str, str]) -> ClayDecision:
     if grade == "A++":
         return ClayDecision(True, "A++ lead always goes to Clay in phase 1.")
     if grade == "A+":
+        # A+ leads stay on the call list even when enrichment already
+        # found a decision maker and a contact path. The sheet doubles
+        # as the working phone list — dropping a high-grade lead because
+        # we found the email cheaply would silently shrink the
+        # actionable queue.
         if not row.get("decision_maker_1_name"):
             return ClayDecision(True, "A+ lead is missing a decision maker.")
         if not has_business_contact(row):
             return ClayDecision(True, "A+ lead has no business contact path.")
-        return ClayDecision(False, "A+ lead already has decision maker and business contact path.")
+        return ClayDecision(True, "A+ lead is call-ready and stays on the queue.")
     if grade == "A":
         return ClayDecision(True, "A lead goes to Clay during the start phase.")
     return ClayDecision(False, "Lead grade is not eligible for automatic Clay handoff.")

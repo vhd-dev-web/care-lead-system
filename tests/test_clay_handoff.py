@@ -61,8 +61,11 @@ def test_clay_queue_uses_phase_one_grade_rules_and_marks_master_status(tmp_path)
     queue_rows = read_csv(result["queue_path"])
     queued_domains = {row["domain"] for row in queue_rows}
 
-    assert queued_domains == {"a-plus-plus.de", "a-plus-missing.de", "a-start.de"}
-    assert result["records_written"] == 3
+    # A+ leads stay on the queue even when enrichment already supplied
+    # a decision maker and a business contact — the sheet doubles as
+    # the working phone list for phase 1.
+    assert queued_domains == {"a-plus-plus.de", "a-plus-missing.de", "a-plus-done.de", "a-start.de"}
+    assert result["records_written"] == 4
 
     master_by_domain = {row["domain_key"]: row for row in MasterStore(tmp_path).load_rows()}
     assert master_by_domain["a-plus-plus.de"]["clay_status"] == "queued"
