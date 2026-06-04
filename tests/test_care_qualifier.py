@@ -17,6 +17,7 @@ from care_lead_system.scraper.lead_qualifier import (
     detect_care_signals,
     detect_ik_number,
     detect_scale_indicators,
+    extract_phone,
     next_action_care,
     score_fit_care,
 )
@@ -303,6 +304,108 @@ def test_grade_from_care_row_ik_is_not_required_for_a_plus() -> None:
     row = _care_row(vhd_fit_score="68", ik_number="")
     assert grade_from_care_row(row) == "A+"
 
+
+SOFTWARE_PROVIDER_HTML = """
+<html><body>
+<h1>DTA-Abrechnung für Pflegehilfsmittel-Leistungserbringer</h1>
+<p>Unser Rechenzentrum übernimmt die Abrechnung mit der Pflegekasse
+gemäß § 40 SGB XI für Sie. Schnittstelle zur Pflegekasse über
+Datenübermittlung im DTA-Verfahren.</p>
+<p>Unsere Softwarelösung läuft als SaaS-Lösung im Browser.</p>
+<p>Pflegehilfsmittel-Abrechnung, Pflegegrad, Pflegebox.</p>
+</body></html>
+"""
+
+WOHLFAHRT_HTML = """
+<html><body>
+<h1>Wohlfahrtsverband — Hilfsdienst für die häusliche Pflege</h1>
+<p>Wir sind ein gemeinnütziger Wohlfahrtsverband. Spenden für die
+Hilfsdienste sind willkommen. Spendenkonto: ...</p>
+<p>Pflegehilfsmittel zum Verbrauch bieten wir über unseren
+ehrenamtlichen Hilfsdienst an.</p>
+<p>Pflegekasse, Pflegegrad, § 40 SGB XI, Antrag stellen.</p>
+</body></html>
+"""
+
+VERMITTLUNG_HTML = """
+<html><body>
+<h1>24-Stunden-Pflege durch polnische Pflegekräfte</h1>
+<p>Wir vermitteln polnische Betreuung für die häusliche Pflege.
+Unsere Pflegevermittlung ist deutschlandweit aktiv.</p>
+<p>Pflegegrad, Pflegekasse, Kostenübernahme möglich.</p>
+<p>Antrag stellen, Pflegebox auf Wunsch.</p>
+</body></html>
+"""
+
+
+# --- CARE_DISQUALIFIER_TERMS ---------------------------------------
+
+def test_classify_lead_care_rejects_software_rechenzentrum() -> None:
+    """DMRZ-pattern: GKV-Abrechnungssoftware that talks about Pflege."""
+    signals = detect_care_signals(SOFTWARE_PROVIDER_HTML, SOFTWARE_PROVIDER_HTML)
+    assert len(signals["disqualifier"]) >= 2
+    lead_type, reason = classify_lead_care(signals, ik_number="660511111", scale_indicators=[])
+    assert lead_type == "service_provider"
+    assert reason == "out_of_icp_business_type"
+
+
+def test_classify_lead_care_rejects_wohlfahrtsverband() -> None:
+    """Malteser-pattern: Wohlfahrtsverband with care content."""
+    signals = detect_care_signals(WOHLFAHRT_HTML, WOHLFAHRT_HTML)
+    assert len(signals["disqualifier"]) >= 2
+    lead_type, reason = classify_lead_care(signals, ik_number="", scale_indicators=[])
+    assert lead_type == "service_provider"
+
+
+def test_classify_lead_care_rejects_24h_vermittlung() -> None:
+    """Schlaganfallbegleitung-pattern: 24h-Pflegevermittlung."""
+    signals = detect_care_signals(VERMITTLUNG_HTML, VERMITTLUNG_HTML)
+    assert len(signals["disqualifier"]) >= 2
+    lead_type, reason = classify_lead_care(signals, ik_number="461121257", scale_indicators=[])
+    assert lead_type == "service_provider"
+    assert reason == "out_of_icp_business_type"
+
+
+def test_score_fit_care_service_provider_is_zero() -> None:
+    signals = detect_care_signals(SOFTWARE_PROVIDER_HTML, SOFTWARE_PROVIDER_HTML)
+    score = score_fit_care(
+        "service_provider", "660511111", signals, [], is_dach=True, email="", phone=""
+    )
+    assert score == 0
+
+
+def test_next_action_care_service_provider_rejects() -> None:
+    assert next_action_care("service_provider", 0, "660511111") == "reject"
+
+
+# --- extract_phone -------------------------------------------------
+
+def test_extract_phone_blocks_german_date_format() -> None:
+    """Regression: schlaganfallbegleitung.de and pflegebox-direkt.de
+    served impressums where the verifier matched 09.012.2020 and
+    01.01.2025 as phone numbers."""
+    assert extract_phone("Datum: 01.01.2025 — sonst nichts.") == ""
+    assert extract_phone("Stand 09.012.2020.") == ""
+    assert extract_phone("12/03/2024") == ""
+
+
+def test_extract_phone_finds_real_phone_after_date_noise() -> None:
+    """A real phone after a date should still be found."""
+    text = "Eingetragen am 01.01.2025. Telefon: 030 555 7850 65"
+    assert "030" in extract_phone(text)
+
+
+def test_extract_phone_rejects_too_short() -> None:
+    """Plain '0123' is too short to be a phone."""
+    assert extract_phone("Notiz: 01234") == ""
+
+
+def test_extract_phone_finds_plus49_format() -> None:
+    text = "Tel: +49 211 7692150"
+    assert "+49" in extract_phone(text) or "211" in extract_phone(text)
+
+
+# --- grade routing -------------------------------------------------
 
 def test_grade_from_verification_row_routes_pflegebox_niche_through_care_grading() -> None:
     """The top-level entry point must respect the niche field."""

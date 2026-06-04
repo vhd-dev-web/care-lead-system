@@ -29,6 +29,7 @@ VERIFICATION_ALIASES = {
     "care_process_signals": ("care_process_signals",),
     "care_insurer_signals": ("care_insurer_signals",),
     "care_ratgeber_signals": ("care_ratgeber_signals",),
+    "care_disqualifier_signals": ("care_disqualifier_signals",),
     "scale_indicators": ("scale_indicators",),
     "verification_evidence_url": ("verification_evidence_url", "evidence_url", "source_url", "url"),
     "verification_checked_at": ("verification_checked_at", "checked_at", "last_scored_at"),
@@ -84,6 +85,23 @@ def build_verification_patch(row: dict[str, object]) -> dict[str, str]:
         patch["review_status"] = "manual_review"
     if patch.get("lead_grade") == "Reject":
         patch["review_status"] = "rejected"
+
+    # do_not_contact reset: when a previous run (e.g. the WooCommerce
+    # classification) flagged a domain do_not_contact=true and the
+    # current run promotes it to a top-tier care lead, the stale flag
+    # silently blocks the lead from the Clay queue. Resetting belongs
+    # here because this adapter owns the verification truth.
+    care_lead_type = first_value(row, ("care_lead_type",)).strip().lower()
+    if (
+        patch.get("lead_grade") in {"A++", "A+", "A"}
+        and care_lead_type == "pflegebox_anbieter"
+    ):
+        # Only clear flags set by a previous automated pipeline run,
+        # never overwrite a manual do_not_contact decision (signaled
+        # by a non-pipeline-style do_not_contact_reason).
+        patch["do_not_contact"] = "false"
+        patch["do_not_contact_reason"] = ""
+
     if any(patch.get(field) for field in ("domain_alive", "is_shop", "is_woocommerce", "verification_score")):
         if not patch.get("verification_status"):
             patch["verification_status"] = "done"
@@ -142,9 +160,9 @@ def grade_from_care_row(row: dict[str, object]) -> str:
     score = parse_score(first_value(row, ("vhd_fit_score", "score", "verification_score")))
     exclusion = first_value(row, ("exclusion_reason", "error_reason")).lower()
 
-    if care_lead_type in {"rejected", "ratgeber_site"}:
+    if care_lead_type in {"rejected", "ratgeber_site", "service_provider"}:
         return "Reject"
-    if exclusion in {"no_care_signals", "ratgeber_or_content_site"}:
+    if exclusion in {"no_care_signals", "ratgeber_or_content_site", "out_of_icp_business_type"}:
         return "Reject"
 
     if care_lead_type == "pflegebox_anbieter":

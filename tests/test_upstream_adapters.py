@@ -15,6 +15,106 @@ def write_semicolon_csv(path, rows):
         writer.writerows(rows)
 
 
+def test_verification_import_resets_do_not_contact_on_care_promotion(tmp_path):
+    """Regression: a stale do_not_contact flag from the legacy WC run
+    blocked freshly classified pflegebox_anbieter leads (pflege.de,
+    pflege-betreuer.de, pflegebox.de) from the Clay queue in the live
+    second pipeline run."""
+    from care_lead_system.import_scrapes import import_scrape_files
+    from care_lead_system.master_updater import MasterUpdater
+
+    scrape = tmp_path / "scrape.csv"
+    write_semicolon_csv(scrape, [{"domain": "stale-flag.de", "company_name": "Stale Flag GmbH"}])
+    import_scrape_files([scrape], root_dir=tmp_path, write_xlsx=False)
+    MasterUpdater(tmp_path).update_leads(
+        [{
+            "domain_key": "stale-flag.de",
+            "do_not_contact": "true",
+            "do_not_contact_reason": "legacy WC classification",
+        }],
+        run_id="legacy_wc_run",
+        step="legacy",
+        match_key="domain_key",
+    )
+
+    care_verify = tmp_path / "verification_care.csv"
+    write_semicolon_csv(
+        care_verify,
+        [
+            {
+                "domain": "stale-flag.de",
+                "niche": "pflegebox",
+                "care_lead_type": "pflegebox_anbieter",
+                "is_shop": "yes",
+                "is_woocommerce": "yes",
+                "vhd_fit_score": "82",
+                "checked_at": "2026-06-04T10:00:00Z",
+            }
+        ],
+    )
+    import_verification_results(care_verify, root_dir=tmp_path)
+
+    master = {row["domain_key"]: row for row in MasterStore(tmp_path).load_rows()}
+    row = master["stale-flag.de"]
+    assert row["lead_grade"] == "A++"
+    # Critical: the flag itself must be off so assess_clay_need stops
+    # blocking the lead. The reason field may keep its historical value
+    # for audit — MasterUpdater intentionally never clears non-empty
+    # cells, and we don't want to overwrite a manual decision either.
+    assert row["do_not_contact"] == "false"
+
+
+def test_enrichment_import_preserves_care_lead_grade(tmp_path):
+    """Regression: the enrichment waterfall outputs its own lead_quality
+    using WooCommerce heuristics. Without protection it downgrades
+    care-niche A++ (pflegeboxx24, linara) to A on import."""
+    from care_lead_system.import_scrapes import import_scrape_files
+    from care_lead_system.master_updater import MasterUpdater
+
+    scrape = tmp_path / "scrape.csv"
+    write_semicolon_csv(scrape, [{"domain": "care-anbieter.de", "company_name": "Care GmbH"}])
+    import_scrape_files([scrape], root_dir=tmp_path, write_xlsx=False)
+    # Set the care classification on the master first.
+    MasterUpdater(tmp_path).update_leads(
+        [{
+            "domain_key": "care-anbieter.de",
+            "niche": "pflegebox",
+            "care_lead_type": "pflegebox_anbieter",
+            "lead_grade": "A++",
+            "verification_score": "88",
+        }],
+        run_id="care_verify",
+        step="verification",
+        match_key="domain_key",
+    )
+
+    # Enrichment output claims lead_quality=A (the WC-style downgrade).
+    enrichment = tmp_path / "enrichment.csv"
+    write_semicolon_csv(
+        enrichment,
+        [
+            {
+                "domain": "care-anbieter.de",
+                "niche": "pflegebox",
+                "care_lead_type": "pflegebox_anbieter",
+                "general_email": "info@care-anbieter.de",
+                "lead_quality": "A",  # the dangerous downgrade
+                "overall_priority": "A",
+                "vhd_fit_score": "88",
+                "last_enriched_at": "2026-06-04T11:00:00Z",
+            }
+        ],
+    )
+    import_enrichment_results(enrichment, root_dir=tmp_path)
+
+    master = {row["domain_key"]: row for row in MasterStore(tmp_path).load_rows()}
+    row = master["care-anbieter.de"]
+    # The crucial assertion: care grade survives the enrichment import.
+    assert row["lead_grade"] == "A++"
+    # And enrichment data still landed.
+    assert row["email_general"] == "info@care-anbieter.de"
+
+
 def test_verification_import_cooldown_skip_preserves_prior_grade(tmp_path):
     """Regression: a second verifier run on a domain in cooldown writes
     a placeholder row (lead_type=skipped, vhd_fit_score=0, exclusion_reason=

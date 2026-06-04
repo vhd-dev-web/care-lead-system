@@ -67,6 +67,7 @@ BASE_COLUMNS = [
     "care_process_signals",
     "care_insurer_signals",
     "care_ratgeber_signals",
+    "care_disqualifier_signals",
     "scale_indicators",
     "verification_evidence_url",
     "verification_checked_at",

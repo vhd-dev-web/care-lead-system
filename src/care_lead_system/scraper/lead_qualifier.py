@@ -89,6 +89,7 @@ OUT_FIELDS = [
     "care_process_signals",
     "care_insurer_signals",
     "care_ratgeber_signals",
+    "care_disqualifier_signals",
     "scale_indicators",
     "is_dach",
     "vhd_fit_score",
@@ -419,6 +420,73 @@ CARE_GKV_INSURERS = [
     "viactiv",
 ]
 
+# Disqualifier markers — businesses that *talk about* Pflegehilfsmittel
+# but are not eligible cold-outreach targets for our offer:
+#   - GKV-abrechnungssoftware / Rechenzentren (e.g. dmrz.de)
+#   - Wohlfahrtsverbände and rescue services (e.g. malteser.de, drk)
+#   - 24h-Pflegevermittlung / Betreuungsdienste (e.g.
+#     schlaganfallbegleitung.de, polnische-pflege agencies)
+#   - Pflegestützpunkte / Ambulante Dienste (different billing model)
+# Two or more of these on the same page reclassify the lead as
+# "service_provider" with a Reject grade.
+CARE_DISQUALIFIER_TERMS = [
+    # Abrechnungssoftware & Service-Provider
+    "rechenzentrum",
+    "abrechnungszentrum",
+    "abrechnungsservice",
+    "abrechnungssoftware",
+    "praxissoftware",
+    "warenwirtschaft",
+    "leistungserbringer-software",
+    "softwarelösung",
+    "softwareloesung",
+    "saas-lösung",
+    "saas-loesung",
+    "dta-abrechnung",
+    "dta abrechnung",
+    "schnittstelle zur pflegekasse",
+    "datenübermittlung",
+    "datenuebermittlung",
+    # Wohlfahrtsverbände / Hilfsdienste
+    "hilfsdienst",
+    "wohlfahrtsverband",
+    "rettungsdienst",
+    "katastrophenschutz",
+    "freiwilligendienst",
+    "ehrenamtlich",
+    "spenden für",
+    "spenden fuer",
+    "spendenkonto",
+    "förderverein",
+    "foerderverein",
+    "gemeinnützig",
+    "gemeinnuetzig",
+    # 24h-Pflege / Vermittlung
+    "24h-pflege",
+    "24-stunden-pflege",
+    "24 stunden pflege",
+    "24h pflege",
+    "polnische pflegekräfte",
+    "polnische pflegekraefte",
+    "polnische betreuung",
+    "osteuropäische pflegekräfte",
+    "osteuropaeische pflegekraefte",
+    "pflegevermittlung",
+    "betreuungsvermittlung",
+    "betreuungsdienst",
+    "begleitservice",
+    "schlaganfallbegleitung",
+    # Ambulante / Tagespflege (anderer Markt)
+    "ambulante pflege",
+    "ambulanter pflegedienst",
+    "tagespflege",
+    "kurzzeitpflege",
+    "intensivpflege",
+    "wohngruppe",
+    "stationäre pflege",
+    "stationaere pflege",
+]
+
 # Negative — pages that talk about Pflegehilfsmittel but are not
 # providers. These should classify the page as "review" or "rejected".
 CARE_RATGEBER_TERMS = [
@@ -568,11 +636,45 @@ def extract_email(text: str) -> str:
     return email
 
 
+_DATE_LIKE_PATTERNS = (
+    # 01.01.2025 / 1-1-25 / 09/12/2020 — anything that decomposes into
+    # day.month.year survives the phone regex but is clearly a date.
+    # The leading/trailing class also accepts stray punctuation so we
+    # catch "01.01.2025." (trailing period) which we saw live.
+    re.compile(r"^[\s.,;:]*\d{1,2}[./-]\d{1,2}[./-]\d{2,4}[\s.,;:]*$"),
+    # 09.012.2020 — three-digit middle group, still a date layout from
+    # bad imprint formatting we saw on schlaganfallbegleitung.de.
+    re.compile(r"^[\s.,;:]*\d{1,2}[./-]\d{2,3}[./-]\d{2,4}[\s.,;:]*$"),
+)
+
+
+def _looks_like_date(value: str) -> bool:
+    return any(pat.match(value) for pat in _DATE_LIKE_PATTERNS)
+
+
+# +49 followed by an optional space/punctuation, then the rest of the
+# number. The historical regex required a digit immediately after +49
+# and silently dropped "+49 211 7692150".
+_PHONE_PATTERN = re.compile(r"(?:\+49[\s.\-/]?|0049|0)[0-9][0-9\s()./-]{6,20}")
+
+
 def extract_phone(text: str) -> str:
-    match = re.search(r"(?:\+49|0049|0)[0-9][0-9\s()./-]{6,20}", text or "")
-    if not match:
-        return ""
-    return clean_text(match.group(0).strip(".,;:()[]<>"))
+    # Scan iteratively — the first regex hit can be a date, but a
+    # subsequent hit might be a real phone number on the same page.
+    for match in _PHONE_PATTERN.finditer(text or ""):
+        candidate = clean_text(match.group(0).strip(".,;:()[]<> "))
+        if not candidate:
+            continue
+        if _looks_like_date(candidate):
+            continue
+        # A real DE phone number has at least 7 digits; date noise like
+        # "01.01.2025" has 8 but is rejected above. This guards against
+        # short numeric junk being mistaken for a phone.
+        digit_count = sum(1 for c in candidate if c.isdigit())
+        if digit_count < 7:
+            continue
+        return candidate
+    return ""
 
 
 def load_rows(path: Path) -> list[dict[str, str]]:
@@ -738,7 +840,7 @@ def detect_ik_number(text: str, html: str = "") -> str:
 
 
 def detect_care_signals(text: str, html: str = "") -> dict[str, list[str]]:
-    """Detect product / GKV / process / insurer markers on a care site."""
+    """Detect product / GKV / process / insurer / disqualifier markers."""
     haystack = ((text or "") + " " + (html or "")).lower()
     return {
         "product": matching_terms(haystack, CARE_PRODUCT_MARKERS),
@@ -746,6 +848,7 @@ def detect_care_signals(text: str, html: str = "") -> dict[str, list[str]]:
         "process": matching_terms(haystack, CARE_PROCESS_MARKERS),
         "insurers": matching_terms(haystack, CARE_GKV_INSURERS),
         "ratgeber": matching_terms(haystack, CARE_RATGEBER_TERMS),
+        "disqualifier": matching_terms(haystack, CARE_DISQUALIFIER_TERMS),
     }
 
 
@@ -777,6 +880,15 @@ def classify_lead_care(
     gkv_hits = len(care_signals.get("gkv", []))
     process_hits = len(care_signals.get("process", []))
     ratgeber_hits = len(care_signals.get("ratgeber", []))
+    disqualifier_hits = len(care_signals.get("disqualifier", []))
+
+    # Out-of-ICP businesses that talk about Pflegehilfsmittel: GKV-
+    # abrechnungssoftware (dmrz.de), Wohlfahrtsverbände (malteser.de),
+    # 24h-Vermittlung (schlaganfallbegleitung.de). Two or more
+    # disqualifier markers reclassify the lead as service_provider
+    # regardless of how strong the care signals look.
+    if disqualifier_hits >= 2:
+        return "service_provider", "out_of_icp_business_type"
 
     # Strong ratgeber signal with no provider signal at all → reject.
     # Defensive: 3+ ratgeber terms AND no provider order flow indicates
@@ -819,7 +931,7 @@ def score_fit_care(
     B   requires product + process without IK or strong GKV.
     Anything else clamps below review threshold.
     """
-    if lead_type in {"rejected", "ratgeber_site"}:
+    if lead_type in {"rejected", "ratgeber_site", "service_provider"}:
         return 0
 
     score = 0
@@ -845,9 +957,7 @@ def score_fit_care(
 
 
 def next_action_care(lead_type: str, score: int, ik_number: str) -> str:
-    if lead_type == "rejected":
-        return "reject"
-    if lead_type == "ratgeber_site":
+    if lead_type in {"rejected", "ratgeber_site", "service_provider"}:
         return "reject"
     if lead_type == "review":
         return "manual_review"
@@ -876,9 +986,21 @@ def classify_lead(
         return "rejected", domain_reason
 
     if confirmed_woocommerce_shop:
+        # Even a confirmed cart/checkout can come from an agency that
+        # runs a demo shop on its own site (franzsauerstein.de pattern).
+        # Apply an agency check on a wider window before promoting to
+        # "shop", and require a clear shop-vs-agency tiebreaker.
+        agency_window = (domain + " " + text[:8000] + " " + text[-2000:]).lower()
+        agency_hits = sum(1 for term in AGENCY_TERMS if term in agency_window)
+        if agency_hits >= 2:
+            return "review", "shop_or_agency_mixed"
         return "shop", ""
 
-    identity_area = (domain + " " + text[:2500]).lower()
+    # Identity check on a much larger text window than the historical
+    # 2500-char limit. Agency / fulfillment / publisher pages often put
+    # the "Wir sind eine Agentur"-line in the footer or about block,
+    # which the small window missed (e.g. franzsauerstein.de).
+    identity_area = (domain + " " + text[:8000] + " " + text[-2000:]).lower()
     if contains_any(identity_area, AGENCY_TERMS):
         return ("review", "shop_or_agency_mixed") if is_shop else ("agency", "service_provider_agency")
     if contains_any(identity_area, FULFILLMENT_TERMS):
@@ -1241,6 +1363,7 @@ def qualify_row(
         "care_process_signals": "|".join(care_signals.get("process", [])),
         "care_insurer_signals": "|".join(care_signals.get("insurers", [])),
         "care_ratgeber_signals": "|".join(care_signals.get("ratgeber", [])),
+        "care_disqualifier_signals": "|".join(care_signals.get("disqualifier", [])),
         "scale_indicators": "|".join(scale_indicators),
         "is_dach": "yes" if is_dach else "no",
         "vhd_fit_score": str(score),

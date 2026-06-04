@@ -61,6 +61,19 @@ def build_enrichment_patch(row: dict[str, object]) -> dict[str, str]:
     patch = {field: first_value(row, aliases) for field, aliases in ENRICHMENT_ALIASES.items()}
     patch["domain_key"] = normalize_domain(patch.get("domain_key"))
     checked_at = first_value(row, ("last_enriched_at", "last_queued_at", "checked_at")) or utc_now()
+
+    # The enrichment waterfall's own "lead_quality" heuristic was tuned
+    # for the WooCommerce ICP and downgrades real Pflegebox leads
+    # (e.g. A++ → A, A → B). For care-niche rows, trust the verifier's
+    # care grade and discard whatever the enrichment row carries.
+    niche = first_value(row, ("niche",)).strip().lower()
+    care_lead_type = first_value(row, ("care_lead_type",)).strip().lower()
+    if niche == "pflegebox" or care_lead_type:
+        # Drop enrichment-side lead_grade so the master keeps the
+        # care-grade that grade_from_care_row computed.
+        patch.pop("lead_grade", None)
+        patch.pop("lead_grade_reason", None)
+
     for field in (
         "legal_name",
         "imprint_url",
