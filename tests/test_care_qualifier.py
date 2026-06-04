@@ -231,3 +231,91 @@ def test_next_action_care_review_becomes_manual_review() -> None:
 def test_next_action_care_ratgeber_becomes_reject() -> None:
     assert next_action_care("ratgeber_site", 0, "") == "reject"
     assert next_action_care("rejected", 0, "") == "reject"
+
+
+# --- grade_from_care_row -------------------------------------------
+# Calibrated against the actual scores we measured live for the six
+# reference providers: hygibox=76 (with IK), sanubi=61, box4pflege=55,
+# pflegebox=51, mein-pflegeset=45, pflegemittelbox=42 (all without
+# published IK). IK is a bonus signal, not a gate, so a provider
+# without IK can still reach A or A+ on care signals alone.
+
+import pytest  # noqa: E402
+
+from care_lead_system.verification_adapter import grade_from_care_row, grade_from_verification_row  # noqa: E402
+
+
+def _care_row(**kwargs):
+    base = {
+        "niche": "pflegebox",
+        "care_lead_type": "pflegebox_anbieter",
+    }
+    base.update(kwargs)
+    return base
+
+
+def test_grade_from_care_row_a_plus_plus_with_ik_and_high_score() -> None:
+    row = _care_row(vhd_fit_score="76", ik_number="330556898")
+    assert grade_from_care_row(row) == "A++"
+
+
+def test_grade_from_care_row_a_plus_at_or_above_60() -> None:
+    """sanubi.de hit 61 without published IK and should land in A+."""
+    assert grade_from_care_row(_care_row(vhd_fit_score="61")) == "A+"
+    assert grade_from_care_row(_care_row(vhd_fit_score="60")) == "A+"
+
+
+def test_grade_from_care_row_a_for_45_to_59() -> None:
+    """pflegebox/box4pflege/mein-pflegeset all sit in this band."""
+    for score in (45, 51, 55, 59):
+        assert grade_from_care_row(_care_row(vhd_fit_score=str(score))) == "A", f"score {score}"
+
+
+def test_grade_from_care_row_b_for_30_to_44() -> None:
+    """pflegemittelbox sat at 42; must not fall below B."""
+    assert grade_from_care_row(_care_row(vhd_fit_score="42")) == "B"
+    assert grade_from_care_row(_care_row(vhd_fit_score="30")) == "B"
+
+
+def test_grade_from_care_row_review_below_30() -> None:
+    assert grade_from_care_row(_care_row(vhd_fit_score="20")) == "Review"
+
+
+def test_grade_from_care_row_review_lead_type_always_review() -> None:
+    row = _care_row(care_lead_type="review", vhd_fit_score="40")
+    assert grade_from_care_row(row) == "Review"
+
+
+@pytest.mark.parametrize(
+    "care_lead_type,exclusion",
+    [
+        ("ratgeber_site", "ratgeber_or_content_site"),
+        ("rejected", "no_care_signals"),
+    ],
+)
+def test_grade_from_care_row_rejects_non_provider(care_lead_type: str, exclusion: str) -> None:
+    row = _care_row(care_lead_type=care_lead_type, vhd_fit_score="0", exclusion_reason=exclusion)
+    assert grade_from_care_row(row) == "Reject"
+
+
+def test_grade_from_care_row_ik_is_not_required_for_a_plus() -> None:
+    """Anchor the policy: IK is a bonus, never a gate."""
+    row = _care_row(vhd_fit_score="68", ik_number="")
+    assert grade_from_care_row(row) == "A+"
+
+
+def test_grade_from_verification_row_routes_pflegebox_niche_through_care_grading() -> None:
+    """The top-level entry point must respect the niche field."""
+    care_row = _care_row(vhd_fit_score="76", ik_number="330556898")
+    assert grade_from_verification_row(care_row) == "A++"
+
+    # If the row carries the legacy shop classification, the woocommerce
+    # grader still applies — guarantees backwards compatibility.
+    legacy_row = {
+        "vhd_fit_score": "85",
+        "is_shop": "yes",
+        "is_woocommerce": "yes",
+        "detected_platform": "woocommerce",
+        "possible_shop_levers": "checkout_payment_shipping_review",
+    }
+    assert grade_from_verification_row(legacy_row) == "A++"

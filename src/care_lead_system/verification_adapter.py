@@ -111,10 +111,70 @@ def domain_alive_from_row(row: dict[str, object]) -> bool:
 
 
 def grade_from_verification_row(row: dict[str, object]) -> str:
-    lead_type = first_value(row, ("lead_type",)).lower()
+    """Pick a lead grade based on the row's niche.
+
+    The pflegebox niche (this fork's default) uses care-specific
+    thresholds where the IK-Nummer is a bonus, not a requirement. Any
+    other niche falls back to the original WooCommerce-shop logic so
+    legacy data stays gradable.
+    """
     category = first_value(row, ("category",))
     if category:
         return normalize_category(category)
+
+    niche = first_value(row, ("niche",)).strip().lower()
+    if niche == "pflegebox":
+        return grade_from_care_row(row)
+
+    return grade_from_shop_row(row)
+
+
+def grade_from_care_row(row: dict[str, object]) -> str:
+    """Care-niche grading driven by care_lead_type + vhd_fit_score.
+
+    The IK-Nummer is treated as a bonus signal (already factored into
+    the score by score_fit_care), not as a hard gate, because the
+    Pflegehilfsmittel imprint rules do not require it to be published.
+    Thresholds are calibrated to the score range we observed on the
+    six reference providers (42–76 without/with IK on the imprint).
+    """
+    care_lead_type = first_value(row, ("care_lead_type", "lead_type")).lower()
+    score = parse_score(first_value(row, ("vhd_fit_score", "score", "verification_score")))
+    exclusion = first_value(row, ("exclusion_reason", "error_reason")).lower()
+
+    if care_lead_type in {"rejected", "ratgeber_site"}:
+        return "Reject"
+    if exclusion in {"no_care_signals", "ratgeber_or_content_site"}:
+        return "Reject"
+
+    if care_lead_type == "pflegebox_anbieter":
+        if score >= 75:
+            return "A++"
+        if score >= 60:
+            return "A+"
+        if score >= 45:
+            return "A"
+        if score >= 30:
+            return "B"
+        return "Review"
+
+    if care_lead_type == "review":
+        return "Review"
+
+    # Unclassified care row: fall back to score-based bucketing so
+    # downstream filters still have something to work with.
+    if score >= 60:
+        return "A"
+    if score >= 45:
+        return "B"
+    if score >= 30:
+        return "Review"
+    return "C"
+
+
+def grade_from_shop_row(row: dict[str, object]) -> str:
+    """Original WooCommerce-shop grading; preserved for niche=woocommerce."""
+    lead_type = first_value(row, ("lead_type",)).lower()
     detected_platform = first_value(row, ("detected_platform",)).lower()
     if detected_platform and detected_platform != "woocommerce":
         return "Reject"
